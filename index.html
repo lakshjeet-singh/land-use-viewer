@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Land Use Change Viewer</title>
+    <style>
+        :root {
+            --bg-color: #f0f4f8;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --accent-green: #10b981;
+            --accent-hover: #059669;
+            --card-bg: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* Header & Controls */
+        header {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin-bottom: 25px;
+        }
+
+        .dropdown-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        select {
+            appearance: none;
+            background-color: var(--card-bg);
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 14px 45px 14px 20px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-main);
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%231e293b%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 18px top 50%;
+            background-size: 12px auto;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--accent-green);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+        }
+
+        /* Image Comparison Slider */
+        .comparison-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            overflow: hidden;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.2);
+            margin-bottom: 35px;
+            background-color: #000;
+            border: 4px solid white;
+        }
+
+        .comparison-container img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            user-select: none;
+        }
+
+        #after-image {
+            clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
+        }
+
+        .slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: ew-resize;
+            z-index: 10;
+        }
+
+        .slider-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 4px;
+            background: white;
+            z-index: 5;
+            pointer-events: none;
+            box-shadow: 0 0 15px rgba(0,0,0,0.6);
+        }
+
+        /* Mobile Friendly Handle */
+        .slider-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 44px;
+            height: 44px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+            color: var(--text-main);
+            font-size: 1.5rem;
+            font-weight: 300;
+            letter-spacing: -2px;
+            padding-right: 2px; /* Visual centering tweak */
+            pointer-events: none; /* Crucial: allows clicks to pass through to the slider input */
+        }
+
+        /* AI Summary Card */
+        .ai-summary {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            border-left: 6px solid var(--accent-green);
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
+            margin-bottom: 35px;
+            overflow: hidden;
+        }
+
+        .ai-badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            letter-spacing: 0.8px;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent-hover);
+            padding: 6px 12px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        #summary-text {
+            font-size: 1.1rem;
+            color: var(--text-main);
+            opacity: 1;
+        }
+
+        /* Dynamic Text Animation */
+        .animate-text {
+            animation: slideFadeIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        @keyframes slideFadeIn {
+            0% { opacity: 0; transform: translateY(15px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Action Button */
+        .submit-btn {
+            display: block;
+            width: 100%;
+            padding: 18px;
+            background: var(--text-main);
+            color: white;
+            text-align: center;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.15rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .submit-btn:hover {
+            background: #0f172a;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .submit-btn:active { transform: translateY(0); }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            animation: modalPop 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        @keyframes modalPop {
+            0% { opacity: 0; transform: scale(0.95) translateY(10px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .close-btn:hover { color: var(--text-main); }
+
+        .modal-content h2 { margin-bottom: 10px; font-size: 1.8rem; }
+        .modal-content p { color: var(--text-muted); margin-bottom: 25px; }
+
+        .dummy-form input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        .dummy-file-btn {
+            width: 100%;
+            padding: 12px;
+            background: #e2e8f0;
+            border: 2px dashed #94a3b8;
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 25px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Local Land Use Change Viewer</h1>
+            <p class="subtitle">Documenting regional development and ecological impact.</p>
+
+            <div class="dropdown-container">
+                <select id="location-select">
+                    <option value="lpu">Lovely Professional University (2017 - 2025)</option>
+                    <option value="jalandhar">Jalandhar Urban Sprawl (2018 - 2025)</option>
+                    <option value="mumbai">Navi Mumbai Airport (2018 - 2025)</option>
+                    <option value="bhadla">Bhadla Solar Park (2018 - 2024)</option>
+                    <option value="parbati">Parbati-II Hydro Project (Oct '12 - Oct '24)</option>
+                </select>
+            </div>
+        </header>
+
+        <div class="comparison-container">
+            <img src="images/LPUSept17.png" alt="Before" id="before-image">
+            <img src="images/LPUMay25.png" alt="After" id="after-image">
+            <div class="slider-line" id="slider-line">
+                <div class="slider-button">&lsaquo;&rsaquo;</div>
+            </div>
+            <input type="range" min="0" max="100" value="50" class="slider" id="slider">
+        </div>
+
+        <div class="ai-summary">
+            <span class="ai-badge">AI Analysis</span>
+            <p id="summary-text" class="animate-text">Satellite comparisons over an 8-year period illustrate rapid institutional and secondary commercial expansion. The university's built footprint has significantly densified and expanded southward. Concurrently, neighboring rural settlements show marked outward growth, highlighting the conversion of surrounding agricultural plots to support the localized economic ecosystem.</p>
+        </div>
+
+        <button class="submit-btn" onclick="openModal()">
+            📷 Submit Your Local Area
+        </button>
+    </div>
+
+    <div class="modal-overlay" id="submissionModal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2>Submit an Area</h2>
+            <p>Upload your own Google Earth captures to contribute to the global environmental database.</p>
+
+            <div class="dummy-form">
+                <input type="text" placeholder="Location Name (e.g., Central Park)">
+                <input type="text" placeholder="Year 1 vs Year 2 (e.g., 2018 - 2024)">
+                <button class="dummy-file-btn">📁 Select Before & After Images</button>
+                <button class="submit-btn" onclick="closeModal()">Upload Submission</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data Dictionary
+        const locationData = {
+            lpu: {
+                before: "images/LPUSept17.png",
+                after: "images/LPUMay25.png",
+                summary: "Satellite comparisons over an 8-year period illustrate rapid institutional and secondary commercial expansion. The university's built footprint has significantly densified and expanded southward. Concurrently, neighboring rural settlements show marked outward growth, highlighting the conversion of surrounding agricultural plots to support the localized economic ecosystem."
+            },
+            jalandhar: {
+                before: "images/JalandharOct18.png",
+                after: "images/JalandharMay25.png",
+                summary: "Analysis reveals aggressive urban sprawl and residential development over a 7-year span. Vast tracts of continuous agricultural land east of Pholriwal have been replaced by structured, high-density residential plotting and road networks, demonstrating the rapid outward expansion of the city's municipal borders."
+            },
+            mumbai: {
+                before: "images/MumbaiAirportFeb18.png",
+                after: "images/MumbaiAirportNov25.png",
+                summary: "This comparison showcases an extreme example of macro-level topographical engineering. The natural, uneven hilly terrain and winding creek systems have been completely leveled and filled. Notice how the natural water bodies have been artificially rerouted into straight, engineered perimeter channels to make way for massive, formalized runway strips and terminal building footprints."
+            },
+            bhadla: {
+                before: "images/BhadlaSolarMay18.png",
+                after: "images/BhadlaSolarMay24.png",
+                summary: "Satellite data reveals a massive, rapid deployment of renewable energy infrastructure in the Thar Desert. Over the selected timeframe, vast tracts of previously undeveloped, arid terrain have been entirely covered by a dense, geometric grid of photovoltaic arrays. This visualizes one of the world's largest solar installations scaling up to occupy the natural landscape."
+            },
+            parbati: {
+                before: "images/Parbati-IIOct12.png",
+                after: "images/Parbati-IIOct24.png",
+                summary: "Topographical analysis indicates the construction of a major hydroelectric barrier on the Sainj River. The primary visible alteration is the formation of a deep-water reservoir upstream of Jiwa, submerging the previous riverbanks. Additionally, downstream flow patterns near Sainj Valley appear regulated, demonstrating the substantial impact of renewable energy infrastructure on natural riverine ecosystems."
+            }
+        };
+
+        // Slider Elements
+        const slider = document.getElementById('slider');
+        const afterImage = document.getElementById('after-image');
+        const sliderLine = document.getElementById('slider-line');
+        const locationSelect = document.getElementById('location-select');
+        const beforeImageElement = document.getElementById('before-image');
+        const summaryTextElement = document.getElementById('summary-text');
+
+        // Modal Elements
+        const modal = document.getElementById('submissionModal');
+
+        // Clip-path Slider Logic
+        slider.addEventListener('input', (e) => {
+            const sliderValue = e.target.value;
+            afterImage.style.clipPath = `polygon(${sliderValue}% 0, 100% 0, 100% 100%, ${sliderValue}% 100%)`;
+            sliderLine.style.left = `${sliderValue}%`;
+        });
+
+        // Dropdown Logic with Animation Reflow
+        locationSelect.addEventListener('change', (e) => {
+            const selected = e.target.value;
+            const data = locationData[selected];
+
+            // Swap Images
+            beforeImageElement.src = data.before;
+            afterImage.src = data.after;
+
+            // Swap Text and trigger animation reflow
+            summaryTextElement.innerText = data.summary;
+            summaryTextElement.classList.remove('animate-text');
+            void summaryTextElement.offsetWidth; // This forces the browser to restart the animation
+            summaryTextElement.classList.add('animate-text');
+
+            // Reset Slider
+            slider.value = 50;
+            afterImage.style.clipPath = `polygon(50% 0, 100% 0, 100% 100%, 50% 100%)`;
+            sliderLine.style.left = `50%`;
+        });
+
+        // Modal Logic
+        function openModal() {
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+
+        // Close modal if user clicks outside the box
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>
